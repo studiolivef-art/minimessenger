@@ -1,0 +1,147 @@
+<meta name='viewport' content='width=device-width, initial-scale=1'/><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mini Messenger - Google Login</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body { margin:0; font-family:Arial,sans-serif; background:#f0f2f5; }
+.container { max-width:420px; margin:auto; height:100vh; background:#fff; display:flex; flex-direction:column; }
+header { background:#1877f2; color:white; padding:12px; text-align:center; font-weight:bold; }
+
+#loginBox, #chatBox { padding:20px; }
+#chatBox { display:none; flex:1; flex-direction:column; }
+
+button {
+  width:100%;
+  padding:12px;
+  background:#1877f2;
+  color:white;
+  border:none;
+  border-radius:6px;
+  font-size:16px;
+}
+
+#messages { flex:1; overflow-y:auto; margin-bottom:10px; }
+.msg { margin:6px 0; }
+.me { text-align:right; }
+.bubble {
+  display:inline-block;
+  padding:8px 12px;
+  border-radius:18px;
+  background:#e4e6eb;
+}
+.me .bubble { background:#1877f2; color:white; }
+
+.inputBox { display:flex; }
+.inputBox input {
+  flex:1;
+  padding:10px;
+  border-radius:20px;
+  border:1px solid #ccc;
+}
+.inputBox button {
+  width:auto;
+  margin-left:6px;
+  border-radius:20px;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+  <header>Mini Messenger</header>
+
+  <!-- LOGIN -->
+  <div id="loginBox">
+    <button onclick="googleLogin()">Login with Google</button>
+  </div>
+
+  <!-- CHAT -->
+  <div id="chatBox">
+    <div id="messages"></div>
+    <div class="inputBox">
+      <input type="text" id="messageInput" placeholder="Type message">
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- 🔥 Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+// 🔴 Firebase Config (তোমার project)
+firebase.initializeApp({
+  apiKey: "AIzaSyBqoF5S18F_lHuQpNW63IOzgGnvYVzUi_4",
+  authDomain: "minimessenger-5787e.firebaseapp.com",
+  databaseURL: "https://minimessenger-5787e-default-rtdb.firebaseio.com",
+  projectId: "minimessenger-5787e",
+  messagingSenderId: "938479935598",
+  appId: "1:938479935598:web:d5b353e75757e39e2e467f"
+});
+
+const auth = firebase.auth();
+const db = firebase.database();
+let currentUser = null;
+
+/* 🔐 Google Login */
+function googleLogin(){
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider)
+    .then(res=>{
+      currentUser = res.user;
+
+      // save user
+      db.ref("users/"+currentUser.uid).set({
+        name: currentUser.displayName,
+        photo: currentUser.photoURL,
+        email: currentUser.email
+      });
+
+      startChat();
+    })
+    .catch(err=>alert(err.message));
+}
+
+/* 🚀 Start Chat */
+function startChat(){
+  document.getElementById("loginBox").style.display="none";
+  document.getElementById("chatBox").style.display="flex";
+  listenMessages();
+}
+
+/* ✉️ Send Message */
+function sendMessage(){
+  const text = messageInput.value.trim();
+  if(!text) return;
+
+  db.ref("messages").push({
+    uid: currentUser.uid,
+    name: currentUser.displayName,
+    text: text,
+    time: Date.now()
+  });
+  messageInput.value="";
+}
+
+/* 👂 Listen Messages */
+function listenMessages(){
+  db.ref("messages").on("value",snap=>{
+    messages.innerHTML="";
+    const data = snap.val() || {};
+    Object.values(data).forEach(m=>{
+      const div = document.createElement("div");
+      div.className = "msg " + (m.uid===currentUser.uid ? "me" : "");
+      div.innerHTML = `<div class="bubble"><b>${m.name}:</b> ${m.text}</div>`;
+      messages.appendChild(div);
+    });
+    messages.scrollTop = messages.scrollHeight;
+  });
+}
+</script>
+</body>
+</html>
